@@ -23,6 +23,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -53,6 +54,7 @@ var requestCmd = &cobra.Command{
 		headers, _ := cmd.Flags().GetString("headers")
 		bodyFile, _ := cmd.Flags().GetString("bfile")
 		headerFile, _ := cmd.Flags().GetString("hfile")
+		filename, _ := cmd.Flags().GetString("output")
 
 		if bodyFile != "" {
 			body = parseFile(bodyFile)
@@ -64,12 +66,6 @@ var requestCmd = &cobra.Command{
 		headersMap := make(map[string]string)
 		if headers != "" {
 			headersMap = prepareHeaders(headers)
-		}
-
-		filename, _ := cmd.Flags().GetString("output")
-		if filename == "" {
-			pid := os.Getpid()
-			filename = fmt.Sprintf("./results-%d.log", pid)
 		}
 
 		properties := requestProperties{
@@ -89,7 +85,15 @@ var requestCmd = &cobra.Command{
 		close(c)
 		fmt.Println("Done processing requests...")
 
-		f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		// Prepare filename
+		timestamp := time.Now().Format("20060102150405")
+		if filename == "" {
+			filename = fmt.Sprintf("./results-%s.log", timestamp)
+		} else {
+			filename = strings.ReplaceAll(filename, "{timestamp}", timestamp)
+		}
+
+		f, err := os.Create(filename)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
