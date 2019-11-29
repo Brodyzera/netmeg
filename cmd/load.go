@@ -36,6 +36,7 @@ type requestJSON []struct {
 	Bfile       string `json:"bfile"`
 	Hfile       string `json:"hfile"`
 	Output      string `json:"output"`
+	Mode        string `json:"mode"`
 }
 
 // loadCmd represents the load command
@@ -59,7 +60,7 @@ var loadCmd = &cobra.Command{
 
 		for _, req := range requests {
 			reqArgs := []string{"request", "-u", req.URL, "-m", req.Method, "-n", strconv.Itoa(req.Amount),
-				"-b", req.Body, "-H", req.Headers, "--bfile", req.Bfile, "--hfile", req.Hfile, "-o", req.Output}
+				"-b", req.Body, "-H", req.Headers, "--bfile", req.Bfile, "--hfile", req.Hfile, "-o", req.Output, "--mode", req.Mode}
 			fmt.Println(reqArgs)
 
 			out, err := exec.Command("netmeg", reqArgs...).CombinedOutput()
