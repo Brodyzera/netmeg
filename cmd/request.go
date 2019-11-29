@@ -50,6 +50,11 @@ var requestCmd = &cobra.Command{
 		url, _ := cmd.Flags().GetString("url")
 		amount, _ := cmd.Flags().GetInt("amount")
 		body, _ := cmd.Flags().GetString("body")
+		bodyFile, _ := cmd.Flags().GetString("bfile")
+
+		if bodyFile != "" {
+			body = parseFile(bodyFile)
+		}
 
 		headers, _ := cmd.Flags().GetString("headers")
 		headersMap := make(map[string]string)
@@ -116,6 +121,7 @@ func init() {
 	requestCmd.Flags().StringP("output", "o", "", "Path to file for results")
 	requestCmd.Flags().StringP("headers", "H", "", "Header list formated as {key}:{value}, separated by commas")
 	requestCmd.Flags().StringP("body", "b", "", "Request body")
+	requestCmd.Flags().String("bfile", "", "File containing Request body (overrides -body and -b flags)")
 }
 
 // Submit request and send http.Response to channel 'c'.
@@ -168,4 +174,13 @@ func prepareHeaders(input string) map[string]string {
 		headerMap[innerSlice[0]] = innerSlice[1]
 	}
 	return headerMap
+}
+
+func parseFile(filename string) string {
+	bytes, err := ioutil.ReadFile(filename)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s", err)
+		os.Exit(1)
+	}
+	return string(bytes)
 }
