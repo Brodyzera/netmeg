@@ -65,7 +65,6 @@ var requestCmd = &cobra.Command{
 		if headers != "" {
 			headersMap = prepareHeaders(headers)
 		}
-		fmt.Println(headersMap)
 
 		filename, _ := cmd.Flags().GetString("output")
 		if filename == "" {
