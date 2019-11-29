@@ -7,10 +7,14 @@
 go get github.com/brodyzera/netmeg
 ```
 
-## Example
-`netmeg request -u https://google.com -m get -n 5 -b  -H  --bfile  --hfile  -o`
+## Examples
+`netmeg request -u https://google.com -m get -n 2`
 
-`netmeg request -u https://jsonplaceholder.typicode.com/posts -m POST -n 10 -b {"title": "This is a title."} -H Content-Type:application/json --bfile  --hfile  -o post-response.log`
+`netmeg request -u https://jsonplaceholder.typicode.com/posts -m POST -n 10 -b "{\"title\": \"This is a title.\"}" -H "Content-Type:application/json, Test:123" -o post-response.log --mode file`
+
+**Note the double quotes around the in-line -b and -H values, as well as the backslash-escaped double quotes within the JSON body.  If you are passing in a Request Body or Headers, use pre-made files instead.**
+
+`netmeg request -u https://jsonplaceholder.typicode.com/posts -m POST -n 10 --bfile ./resources/body.json --hbody ./resources/headers.txt -o ./output/post-response.log --mode both`
 
 You can also load pre-built requests from JSON files.  For example, create a JSON Array of JSON objects, like so;
 ### requests.json
@@ -25,7 +29,8 @@ You can also load pre-built requests from JSON files.  For example, create a JSO
         "headers": "",
         "bfile": "",
         "hfile": "",
-        "output": ""
+        "output": "",
+        "mode": "file"
     },
     {
         "description": "JSON Placeholder test site POST x 10",
@@ -36,7 +41,8 @@ You can also load pre-built requests from JSON files.  For example, create a JSO
         "headers": "Content-Type:application/json",
         "bfile": "",
         "hfile": "",
-        "output": "post-response.log"
+        "output": "post-response.log",
+        "mode": "both"
     }
 ]
 ```
