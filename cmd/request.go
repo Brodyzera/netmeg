@@ -30,6 +30,12 @@ type requestProperties struct {
 	url              string
 	method           string
 	numberOfRequests int
+	headers          map[string]string
+}
+
+type requestResult struct {
+	statusCode int
+	body       string
 }
 
 // requestCmd represents the request command
@@ -42,45 +48,57 @@ var requestCmd = &cobra.Command{
 		url, _ := cmd.Flags().GetString("url")
 		amount, _ := cmd.Flags().GetInt("amount")
 
+		headers, _ := cmd.Flags().GetString("headers")
+		headersMap := make(map[string]string)
+		if headers != "" {
+			headersMap = prepareHeaders(headers)
+		}
+
+		filename, _ := cmd.Flags().GetString("output")
+		if filename == "" {
+			pid := os.Getpid()
+			filename = fmt.Sprintf("./results-%d.log", pid)
+		}
+
 		properties := requestProperties{
 			url:              url,
 			method:           strings.ToUpper(method),
 			numberOfRequests: amount,
+			headers:          headersMap,
 		}
 
-		fmt.Println("request called")
-		c := make(chan http.Response, properties.numberOfRequests)
+		c := make(chan requestResult, properties.numberOfRequests)
 		for i := 0; i < properties.numberOfRequests; i++ {
 			wg.Add(1)
 			go processRequest(properties, c, &wg)
 		}
 		wg.Wait()
 		close(c)
-		fmt.Println("Done")
+		fmt.Println("Done processing requests...")
 
-		f, err := os.OpenFile("results.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
 
+		var byteTotal int
 		for v := range c {
-			body, _ := ioutil.ReadAll(v.Body)
-			v.Body.Close()
-			result := fmt.Sprintf("new_request\nStatus_Code: %d\nBody: %s\n\n", v.StatusCode, body)
+			result := fmt.Sprintf("new_request\nStatus_Code: %d\nBody: %s\n\n", v.statusCode, v.body)
 
 			bytes, err := f.WriteString(result)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s", err)
 				os.Exit(1)
 			}
-			fmt.Printf("wrote %d bytes\n", bytes)
+			byteTotal += bytes
+		}
+		fmt.Printf("wrote %d bytes\n", byteTotal)
 
-			err = f.Close()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s", err)
-				os.Exit(1)
-			}
+		err = f.Close()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
 		}
 	},
 }
@@ -91,10 +109,12 @@ func init() {
 	requestCmd.Flags().StringP("method", "m", "get", "HTTP method to use for the request")
 	requestCmd.Flags().StringP("url", "u", "", "URL to send the request to")
 	requestCmd.Flags().IntP("amount", "n", 1, "Amount of requests to send")
+	requestCmd.Flags().StringP("output", "o", "", "Path to file for results")
+	requestCmd.Flags().StringP("headers", "H", "", "Header list formated as {key}:{value}, separated by commas")
 }
 
 // Submit request and send http.Response to channel 'c'.
-func processRequest(properties requestProperties, c chan http.Response, wg *sync.WaitGroup) {
+func processRequest(properties requestProperties, c chan requestResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	// Build the request
@@ -104,15 +124,43 @@ func processRequest(properties requestProperties, c chan http.Response, wg *sync
 		return
 	}
 
+	// Set Headers (if any)
+	for key, value := range properties.headers {
+		req.Header.Set(key, value)
+	}
+
 	// Build the HTTP Client
 	client := &http.Client{}
 
 	// Send the request
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s", err)
-		return
+		c <- requestResult{
+			statusCode: -1,
+			body:       err.Error(),
+		}
+	} else {
+		defer resp.Body.Close()
+		body, _ := ioutil.ReadAll(resp.Body)
+		c <- requestResult{
+			statusCode: resp.StatusCode,
+			body:       string(body),
+		}
 	}
+}
 
-	c <- *resp
+func prepareHeaders(input string) map[string]string {
+	headerMap := make(map[string]string)
+	temp := strings.ReplaceAll(input, " ", "")
+	pairs := strings.Split(temp, ",")
+
+	for _, v := range pairs {
+		innerSlice := strings.Split(v, ":")
+		if len(innerSlice) != 2 {
+			fmt.Fprintf(os.Stderr, "The header %s is improperly formatted!", v)
+			os.Exit(1)
+		}
+		headerMap[innerSlice[0]] = innerSlice[1]
+	}
+	return headerMap
 }
