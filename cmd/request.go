@@ -50,17 +50,22 @@ var requestCmd = &cobra.Command{
 		url, _ := cmd.Flags().GetString("url")
 		amount, _ := cmd.Flags().GetInt("amount")
 		body, _ := cmd.Flags().GetString("body")
+		headers, _ := cmd.Flags().GetString("headers")
 		bodyFile, _ := cmd.Flags().GetString("bfile")
+		headerFile, _ := cmd.Flags().GetString("hfile")
 
 		if bodyFile != "" {
 			body = parseFile(bodyFile)
 		}
 
-		headers, _ := cmd.Flags().GetString("headers")
+		if headerFile != "" {
+			headers = parseFile(headerFile)
+		}
 		headersMap := make(map[string]string)
 		if headers != "" {
 			headersMap = prepareHeaders(headers)
 		}
+		fmt.Println(headersMap)
 
 		filename, _ := cmd.Flags().GetString("output")
 		if filename == "" {
@@ -121,7 +126,8 @@ func init() {
 	requestCmd.Flags().StringP("output", "o", "", "Path to file for results")
 	requestCmd.Flags().StringP("headers", "H", "", "Header list formated as {key}:{value}, separated by commas")
 	requestCmd.Flags().StringP("body", "b", "", "Request body")
-	requestCmd.Flags().String("bfile", "", "File containing Request body (overrides -body and -b flags)")
+	requestCmd.Flags().String("bfile", "", "File containing Request body (overrides --body and -b flags)")
+	requestCmd.Flags().String("hfile", "", "File containing Headers (overrides --headers and -H flags)")
 }
 
 // Submit request and send http.Response to channel 'c'.
