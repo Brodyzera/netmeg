@@ -55,6 +55,7 @@ var requestCmd = &cobra.Command{
 		bodyFile, _ := cmd.Flags().GetString("bfile")
 		headerFile, _ := cmd.Flags().GetString("hfile")
 		filename, _ := cmd.Flags().GetString("output")
+		outputMode, _ := cmd.Flags().GetString("mode")
 
 		if bodyFile != "" {
 			body = parseFile(bodyFile)
@@ -85,37 +86,26 @@ var requestCmd = &cobra.Command{
 		close(c)
 		fmt.Println("Done processing requests...")
 
-		// Prepare filename
-		timestamp := time.Now().Format("20060102150405")
-		if filename == "" {
-			filename = fmt.Sprintf("./results-%s.log", timestamp)
-		} else {
-			filename = strings.ReplaceAll(filename, "{timestamp}", timestamp)
-		}
-
-		f, err := os.Create(filename)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s", err)
-			os.Exit(1)
-		}
-
-		var byteTotal int
+		// Output to either console, file, or both
+		resultSlice := make([]requestResult, 0)
 		for v := range c {
-			result := fmt.Sprintf("new_request\nStatus_Code: %d\nBody: %s\n\n", v.statusCode, v.body)
-
-			bytes, err := f.WriteString(result)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s", err)
-				os.Exit(1)
-			}
-			byteTotal += bytes
+			resultSlice = append(resultSlice, v)
 		}
-		fmt.Printf("wrote %d bytes\n", byteTotal)
 
-		err = f.Close()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s", err)
-			os.Exit(1)
+		if (outputMode == "file") || (outputMode == "both") {
+			err := writeResultsToFile(filename, resultSlice)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s\n", err)
+				return
+			}
+		}
+
+		if (outputMode == "console") || (outputMode == "both") {
+			err := writeResultsToConsole(resultSlice)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s\n", err)
+				return
+			}
 		}
 	},
 }
@@ -131,6 +121,7 @@ func init() {
 	requestCmd.Flags().StringP("body", "b", "", "Request body")
 	requestCmd.Flags().String("bfile", "", "File containing Request body (overrides --body and -b flags)")
 	requestCmd.Flags().String("hfile", "", "File containing Headers (overrides --headers and -H flags)")
+	requestCmd.Flags().String("mode", "console", "Output mode for result (console, file, or both)")
 }
 
 // Submit request and send http.Response to channel 'c'.
@@ -192,4 +183,48 @@ func parseFile(filename string) string {
 		os.Exit(1)
 	}
 	return string(bytes)
+}
+
+func writeResultsToFile(filename string, s []requestResult) error {
+	// Prepare filename
+	timestamp := time.Now().Format("20060102150405")
+	if filename == "" {
+		filename = fmt.Sprintf("./results-%s.log", timestamp)
+	} else {
+		filename = strings.ReplaceAll(filename, "{timestamp}", timestamp)
+	}
+
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+
+	var byteTotal int
+	for _, v := range s {
+		result := fmt.Sprintf("new_request\nStatus_Code: %d\nBody: %s\n\n", v.statusCode, v.body)
+
+		bytes, err := f.WriteString(result)
+		if err != nil {
+			return err
+		}
+		byteTotal += bytes
+	}
+	fmt.Printf("wrote %d bytes\n", byteTotal)
+
+	err = f.Close()
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+func writeResultsToConsole(s []requestResult) error {
+	for _, v := range s {
+		_, err := fmt.Fprintf(os.Stdout, "new_request\nStatus_Code: %d\nBody: %s\n\n", v.statusCode, v.body)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
