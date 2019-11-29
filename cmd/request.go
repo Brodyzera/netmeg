@@ -16,6 +16,7 @@ limitations under the License.
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -31,6 +32,7 @@ type requestProperties struct {
 	method           string
 	numberOfRequests int
 	headers          map[string]string
+	body             []byte
 }
 
 type requestResult struct {
@@ -47,6 +49,7 @@ var requestCmd = &cobra.Command{
 		method, _ := cmd.Flags().GetString("method")
 		url, _ := cmd.Flags().GetString("url")
 		amount, _ := cmd.Flags().GetInt("amount")
+		body, _ := cmd.Flags().GetString("body")
 
 		headers, _ := cmd.Flags().GetString("headers")
 		headersMap := make(map[string]string)
@@ -65,6 +68,7 @@ var requestCmd = &cobra.Command{
 			method:           strings.ToUpper(method),
 			numberOfRequests: amount,
 			headers:          headersMap,
+			body:             []byte(body),
 		}
 
 		c := make(chan requestResult, properties.numberOfRequests)
@@ -111,6 +115,7 @@ func init() {
 	requestCmd.Flags().IntP("amount", "n", 1, "Amount of requests to send")
 	requestCmd.Flags().StringP("output", "o", "", "Path to file for results")
 	requestCmd.Flags().StringP("headers", "H", "", "Header list formated as {key}:{value}, separated by commas")
+	requestCmd.Flags().StringP("body", "b", "", "Request body")
 }
 
 // Submit request and send http.Response to channel 'c'.
@@ -118,7 +123,7 @@ func processRequest(properties requestProperties, c chan requestResult, wg *sync
 	defer wg.Done()
 
 	// Build the request
-	req, err := http.NewRequest(properties.method, properties.url, nil)
+	req, err := http.NewRequest(properties.method, properties.url, bytes.NewBuffer(properties.body))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		return
