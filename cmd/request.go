@@ -30,6 +30,7 @@ type requestProperties struct {
 	url              string
 	method           string
 	numberOfRequests int
+	headers          map[string]string
 }
 
 type requestResult struct {
@@ -47,6 +48,12 @@ var requestCmd = &cobra.Command{
 		url, _ := cmd.Flags().GetString("url")
 		amount, _ := cmd.Flags().GetInt("amount")
 
+		headers, _ := cmd.Flags().GetString("headers")
+		headersMap := make(map[string]string)
+		if headers != "" {
+			headersMap = prepareHeaders(headers)
+		}
+
 		filename, _ := cmd.Flags().GetString("output")
 		if filename == "" {
 			pid := os.Getpid()
@@ -57,6 +64,7 @@ var requestCmd = &cobra.Command{
 			url:              url,
 			method:           strings.ToUpper(method),
 			numberOfRequests: amount,
+			headers:          headersMap,
 		}
 
 		c := make(chan requestResult, properties.numberOfRequests)
@@ -102,6 +110,7 @@ func init() {
 	requestCmd.Flags().StringP("url", "u", "", "URL to send the request to")
 	requestCmd.Flags().IntP("amount", "n", 1, "Amount of requests to send")
 	requestCmd.Flags().StringP("output", "o", "", "Path to file for results")
+	requestCmd.Flags().StringP("headers", "H", "", "Header list formated as {key}:{value}, separated by commas")
 }
 
 // Submit request and send http.Response to channel 'c'.
@@ -113,6 +122,11 @@ func processRequest(properties requestProperties, c chan requestResult, wg *sync
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		return
+	}
+
+	// Set Headers (if any)
+	for key, value := range properties.headers {
+		req.Header.Set(key, value)
 	}
 
 	// Build the HTTP Client
@@ -133,4 +147,20 @@ func processRequest(properties requestProperties, c chan requestResult, wg *sync
 			body:       string(body),
 		}
 	}
+}
+
+func prepareHeaders(input string) map[string]string {
+	headerMap := make(map[string]string)
+	temp := strings.ReplaceAll(input, " ", "")
+	pairs := strings.Split(temp, ",")
+
+	for _, v := range pairs {
+		innerSlice := strings.Split(v, ":")
+		if len(innerSlice) != 2 {
+			fmt.Fprintf(os.Stderr, "The header %s is improperly formatted!", v)
+			os.Exit(1)
+		}
+		headerMap[innerSlice[0]] = innerSlice[1]
+	}
+	return headerMap
 }
