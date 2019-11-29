@@ -42,13 +42,18 @@ var requestCmd = &cobra.Command{
 		url, _ := cmd.Flags().GetString("url")
 		amount, _ := cmd.Flags().GetInt("amount")
 
+		filename, _ := cmd.Flags().GetString("output")
+		if filename == "" {
+			pid := os.Getpid()
+			filename = fmt.Sprintf("./results-%d.log", pid)
+		}
+
 		properties := requestProperties{
 			url:              url,
 			method:           strings.ToUpper(method),
 			numberOfRequests: amount,
 		}
 
-		fmt.Println("request called")
 		c := make(chan http.Response, properties.numberOfRequests)
 		for i := 0; i < properties.numberOfRequests; i++ {
 			wg.Add(1)
@@ -56,14 +61,14 @@ var requestCmd = &cobra.Command{
 		}
 		wg.Wait()
 		close(c)
-		fmt.Println("Done")
 
-		f, err := os.OpenFile("results.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
 
+		var byteTotal int
 		for v := range c {
 			body, _ := ioutil.ReadAll(v.Body)
 			v.Body.Close()
@@ -74,13 +79,14 @@ var requestCmd = &cobra.Command{
 				fmt.Fprintf(os.Stderr, "%s", err)
 				os.Exit(1)
 			}
-			fmt.Printf("wrote %d bytes\n", bytes)
+			byteTotal += bytes
+		}
+		fmt.Printf("wrote %d bytes\n", byteTotal)
 
-			err = f.Close()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s", err)
-				os.Exit(1)
-			}
+		err = f.Close()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
 		}
 	},
 }
@@ -91,6 +97,7 @@ func init() {
 	requestCmd.Flags().StringP("method", "m", "get", "HTTP method to use for the request")
 	requestCmd.Flags().StringP("url", "u", "", "URL to send the request to")
 	requestCmd.Flags().IntP("amount", "n", 1, "Amount of requests to send")
+	requestCmd.Flags().StringP("output", "o", "", "Path to file for results")
 }
 
 // Submit request and send http.Response to channel 'c'.
@@ -110,9 +117,12 @@ func processRequest(properties requestProperties, c chan http.Response, wg *sync
 	// Send the request
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s", err)
-		return
+		errorResponse := http.Response{
+			StatusCode: 500,
+			Body:       ioutil.NopCloser(strings.NewReader(err.Error())),
+		}
+		c <- errorResponse
+	} else {
+		c <- *resp
 	}
-
-	c <- *resp
 }
