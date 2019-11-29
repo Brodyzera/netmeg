@@ -32,6 +32,11 @@ type requestProperties struct {
 	numberOfRequests int
 }
 
+type requestResult struct {
+	statusCode int
+	body       string
+}
+
 // requestCmd represents the request command
 var requestCmd = &cobra.Command{
 	Use:   "request",
@@ -54,13 +59,14 @@ var requestCmd = &cobra.Command{
 			numberOfRequests: amount,
 		}
 
-		c := make(chan http.Response, properties.numberOfRequests)
+		c := make(chan requestResult, properties.numberOfRequests)
 		for i := 0; i < properties.numberOfRequests; i++ {
 			wg.Add(1)
 			go processRequest(properties, c, &wg)
 		}
 		wg.Wait()
 		close(c)
+		fmt.Println("Done processing requests...")
 
 		f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
@@ -70,9 +76,7 @@ var requestCmd = &cobra.Command{
 
 		var byteTotal int
 		for v := range c {
-			body, _ := ioutil.ReadAll(v.Body)
-			v.Body.Close()
-			result := fmt.Sprintf("new_request\nStatus_Code: %d\nBody: %s\n\n", v.StatusCode, body)
+			result := fmt.Sprintf("new_request\nStatus_Code: %d\nBody: %s\n\n", v.statusCode, v.body)
 
 			bytes, err := f.WriteString(result)
 			if err != nil {
@@ -101,7 +105,7 @@ func init() {
 }
 
 // Submit request and send http.Response to channel 'c'.
-func processRequest(properties requestProperties, c chan http.Response, wg *sync.WaitGroup) {
+func processRequest(properties requestProperties, c chan requestResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	// Build the request
@@ -117,12 +121,16 @@ func processRequest(properties requestProperties, c chan http.Response, wg *sync
 	// Send the request
 	resp, err := client.Do(req)
 	if err != nil {
-		errorResponse := http.Response{
-			StatusCode: 500,
-			Body:       ioutil.NopCloser(strings.NewReader(err.Error())),
+		c <- requestResult{
+			statusCode: -1,
+			body:       err.Error(),
 		}
-		c <- errorResponse
 	} else {
-		c <- *resp
+		defer resp.Body.Close()
+		body, _ := ioutil.ReadAll(resp.Body)
+		c <- requestResult{
+			statusCode: resp.StatusCode,
+			body:       string(body),
+		}
 	}
 }
