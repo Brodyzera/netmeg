@@ -7,7 +7,7 @@ import (
 
 func TestWriteResultsToFile(t *testing.T) {
 	defer os.RemoveAll("./test_results")
-	_ = os.Mkdir("./test_results", 0666)
+	_ = os.Mkdir("./test_results", 0777)
 
 	requestResults := []requestResult{
 		requestResult{
