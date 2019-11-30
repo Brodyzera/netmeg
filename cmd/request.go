@@ -62,7 +62,11 @@ var requestCmd = &cobra.Command{
 		}
 
 		if headerFile != "" {
-			headers = parseFile(headerFile)
+			temp := parseFile(headerFile)
+			temp = strings.ReplaceAll(temp, "\r", "")
+			temp = strings.ReplaceAll(temp, "\n", "")
+			fmt.Println(temp)
+			headers = temp
 		}
 		headersMap := make(map[string]string)
 		if headers != "" {
