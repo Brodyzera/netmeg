@@ -70,7 +70,12 @@ var requestCmd = &cobra.Command{
 		}
 		headersMap := make(map[string]string)
 		if headers != "" {
-			headersMap = prepareHeaders(headers)
+			var err error
+			headersMap, err = prepareHeaders(headers)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s\n", err)
+				return
+			}
 		}
 
 		properties := requestProperties{
@@ -164,7 +169,7 @@ func processRequest(properties requestProperties, c chan requestResult, wg *sync
 	}
 }
 
-func prepareHeaders(input string) map[string]string {
+func prepareHeaders(input string) (map[string]string, error) {
 	headerMap := make(map[string]string)
 	temp := strings.ReplaceAll(input, " ", "")
 	pairs := strings.Split(temp, ",")
@@ -172,12 +177,11 @@ func prepareHeaders(input string) map[string]string {
 	for _, v := range pairs {
 		innerSlice := strings.Split(v, ":")
 		if len(innerSlice) != 2 {
-			fmt.Fprintf(os.Stderr, "The header %s is improperly formatted!", v)
-			os.Exit(1)
+			return nil, fmt.Errorf("the header %s is improperly formatted", v)
 		}
 		headerMap[innerSlice[0]] = innerSlice[1]
 	}
-	return headerMap
+	return headerMap, nil
 }
 
 func parseFile(filename string) string {
