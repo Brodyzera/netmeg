@@ -4,8 +4,8 @@ on:
     tags:
       - 'v*'
     branches:
-      - master
       - '!*'
+      - master
 jobs:
 
   build:
