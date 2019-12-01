@@ -1,6 +1,6 @@
 # netmeg : CLI for sending HTTP requests implemented in Go
 
-## Overview [![GoDoc](https://godoc.org/github.com/brodyzera/netmeg?status.svg)](https://godoc.org/github.com/brodyzera/netmeg) ![](https://github.com/brodyzera/netmeg/workflows/go-test/badge.svg)
+## Overview ![](https://github.com/brodyzera/netmeg/workflows/go-test/badge.svg)
 
 ## Install
 ```
