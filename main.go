@@ -18,5 +18,5 @@ package main
 import "github.com/brodyzera/netmeg/cmd"
 
 func main() {
-  cmd.Execute()
+	cmd.Execute()
 }
