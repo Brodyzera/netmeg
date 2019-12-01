@@ -3,12 +3,11 @@ on:
   push:
     tags:
       - 'v*'
-    branches:
-      - '!*'
-      - master
+
 jobs:
 
   build:
+    if: github.ref == 'refs/heads/master'
     name: Create release
     runs-on: ubuntu-latest
     steps:
