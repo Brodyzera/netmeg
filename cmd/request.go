@@ -37,8 +37,9 @@ type requestProperties struct {
 }
 
 type requestResult struct {
-	statusCode int
-	body       string
+	statusCode  int
+	body        string
+	timeElapsed time.Duration
 }
 
 // requestCmd represents the request command
@@ -136,6 +137,7 @@ func init() {
 // Submit request and send http.Response to channel 'c'.
 func processRequest(properties requestProperties, c chan requestResult, wg *sync.WaitGroup) {
 	defer wg.Done()
+	start := time.Now()
 
 	// Build the request
 	req, err := http.NewRequest(strings.ToUpper(properties.method), properties.url, bytes.NewBuffer(properties.body))
@@ -154,17 +156,20 @@ func processRequest(properties requestProperties, c chan requestResult, wg *sync
 
 	// Send the request
 	resp, err := client.Do(req)
+	elapsed := time.Since(start)
 	if err != nil {
 		c <- requestResult{
-			statusCode: -1,
-			body:       err.Error(),
+			statusCode:  -1,
+			body:        err.Error(),
+			timeElapsed: elapsed,
 		}
 	} else {
 		defer resp.Body.Close()
 		body, _ := ioutil.ReadAll(resp.Body)
 		c <- requestResult{
-			statusCode: resp.StatusCode,
-			body:       string(body),
+			statusCode:  resp.StatusCode,
+			body:        string(body),
+			timeElapsed: elapsed,
 		}
 	}
 }
@@ -209,7 +214,7 @@ func writeResultsToFile(filename string, s []requestResult) error {
 
 	var byteTotal int
 	for _, v := range s {
-		result := fmt.Sprintf("new_request\nStatus_Code: %d\nBody: %s\n\n", v.statusCode, v.body)
+		result := fmt.Sprintf("new_request\nStatus_Code: %d\nResponse_Time: %s\nBody: %s\n\n", v.statusCode, v.timeElapsed, v.body)
 
 		bytes, err := f.WriteString(result)
 		if err != nil {
@@ -229,7 +234,7 @@ func writeResultsToFile(filename string, s []requestResult) error {
 
 func writeResultsToConsole(s []requestResult) error {
 	for _, v := range s {
-		_, err := fmt.Fprintf(os.Stdout, "new_request\nStatus_Code: %d\nBody: %s\n\n", v.statusCode, v.body)
+		_, err := fmt.Fprintf(os.Stdout, "new_request\nStatus_Code: %d\nResponse_Time: %s\nBody: %s\n\n", v.statusCode, v.timeElapsed, v.body)
 		if err != nil {
 			return err
 		}
