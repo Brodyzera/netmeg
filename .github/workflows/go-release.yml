@@ -5,13 +5,11 @@ on:
       - 'v*'
 
 jobs:
-
   build:
     if: github.ref == 'refs/heads/master'
     name: Create release
     runs-on: ubuntu-latest
     steps:
-
     - name: Set up Go 1.13
       uses: actions/setup-go@v1
       with:
