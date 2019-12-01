@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"os"
+	"sync"
 	"testing"
 )
 
@@ -55,5 +56,36 @@ func TestPrepareHeaders(t *testing.T) {
 	_, errorIncorrect := prepareHeaders(headersIncorrect)
 	if errorIncorrect == nil {
 		t.Errorf("TestPrepareHeaders failed, expected header error didn't occur!\n")
+	}
+}
+
+func TestProcessRequest(t *testing.T) {
+	var wg sync.WaitGroup
+	resultCount := 0
+	headersMap := make(map[string]string)
+	headersMap["Content-Type"] = "application/json"
+
+	properties := requestProperties{
+		url:              "https://localhost",
+		method:           "get",
+		numberOfRequests: 5,
+		headers:          headersMap,
+		body:             []byte(""),
+	}
+	c := make(chan requestResult, properties.numberOfRequests)
+
+	for i := 0; i < properties.numberOfRequests; i++ {
+		wg.Add(1)
+		go processRequest(properties, c, &wg)
+	}
+	wg.Wait()
+	close(c)
+
+	for _ = range c {
+		resultCount++
+	}
+
+	if resultCount != properties.numberOfRequests {
+		t.Errorf("TestProcessRequest failed, received %d responses out of %d requests!", resultCount, properties.numberOfRequests)
 	}
 }
