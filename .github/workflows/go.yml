@@ -1,10 +1,13 @@
 name: go-test
 on: [push]
 jobs:
-
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, windows-latest]
+
     steps:
 
     - name: Set up Go 1.13
