@@ -23,10 +23,6 @@ jobs:
       
     - name: Print version
       shell: bash
-      run: echo ${{ github.ref/refs\/tags\// }}
-      
-    - name: Print version 2
-      shell: bash
       run: echo ${{ steps.get_version.outputs.version }}
 
     #- name: Get dependencies
