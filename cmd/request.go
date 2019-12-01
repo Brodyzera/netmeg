@@ -80,7 +80,7 @@ var requestCmd = &cobra.Command{
 
 		properties := requestProperties{
 			url:              url,
-			method:           strings.ToUpper(method),
+			method:           method,
 			numberOfRequests: amount,
 			headers:          headersMap,
 			body:             []byte(body),
@@ -138,7 +138,7 @@ func processRequest(properties requestProperties, c chan requestResult, wg *sync
 	defer wg.Done()
 
 	// Build the request
-	req, err := http.NewRequest(properties.method, properties.url, bytes.NewBuffer(properties.body))
+	req, err := http.NewRequest(strings.ToUpper(properties.method), properties.url, bytes.NewBuffer(properties.body))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		return
